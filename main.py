@@ -84,16 +84,17 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
     )
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
         ia_response = model.generate_content(prompt)
         recommendation_text = ia_response.text
     except Exception as e:
+        print(f"error: {e}") 
         recommendation_text = f"Based on your taste, {user_name}, we couldn't load the recommendations right now. Please try again!"
 
     safe_parameters = urllib.parse.urlencode({
         "recommendations": recommendation_text
     })
     
-    frontend_url = f"http://localhost:3000/resultado?{safe_parameters}"
+    frontend_url = f"http://localhost:3000/results?{safe_parameters}"
     
     return RedirectResponse(frontend_url)
