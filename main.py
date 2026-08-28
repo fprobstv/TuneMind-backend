@@ -6,10 +6,19 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -43,13 +52,18 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
     if not code:
         return {"error": "Authorization code not found."}
         
+    frontend_url = f"http://localhost:3000/processing?code={code}&state={state}"
+    return RedirectResponse(frontend_url)
+
+@app.get("/generate")
+def generate_recommendations(code: str, state: Optional[str] = "balanced"):
+    
     token_url = "https://accounts.spotify.com/api/token"
     data = {
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": REDIRECT_URI
     }
-
     token_response = requests.post(token_url, data=data, auth=(CLIENT_ID, CLIENT_SECRET))
 
     if token_response.status_code != 200:
@@ -60,11 +74,11 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
     headers = {"Authorization": f"Bearer {access_token}"}
     
     profile_response = requests.get("https://api.spotify.com/v1/me", headers=headers)
-    profile_data = profile_response.json()
-    user_name = profile_data.get("display_name", "Music Lover")
+    user_name = profile_response.json().get("display_name", "Music Lover")
 
     artists_response = requests.get("https://api.spotify.com/v1/me/top/artists?limit=7", headers=headers)
     top_artists_names = [artist["name"] for artist in artists_response.json().get("items", [])]
+    artists_string = ", ".join(top_artists_names)
 
     if state == "hits":
         vibe_instruction = "extremely famous artists, global mainstream hits, and top chart leaders"
@@ -75,7 +89,7 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
 
     prompt = (
         f"Act as a music curator focused on discovering talent. "
-        f"The user is named {user_name}. Their favorite artists are: {', '.join(top_artists_names)}. "
+        f"The user is named {user_name}. Their favorite artists are: {', '.join(artists_string)}. "
         f"Recommend 5 artists that are {vibe_instruction} that they will likely love based on this taste. "
         f"Return ONLY the text in this exact format (no introductions or conclusions):\n"
         f"Based on your taste, {user_name}, these artists match your vibe:\n\n"
@@ -91,10 +105,4 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
         print(f"error: {e}") 
         recommendation_text = f"Based on your taste, {user_name}, we couldn't load the recommendations right now. Please try again!"
 
-    safe_parameters = urllib.parse.urlencode({
-        "recommendations": recommendation_text
-    })
-    
-    frontend_url = f"http://localhost:3000/results?{safe_parameters}"
-    
-    return RedirectResponse(frontend_url)
+    return {"recommendations": recommendation_text}
