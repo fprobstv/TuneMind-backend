@@ -10,23 +10,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+REDIRECT_URI = f"{BACKEND_URL}/callback"
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
-
 genai.configure(api_key=GEMINI_API_KEY)
-
-REDIRECT_URI = "http://127.0.0.1:8000/callback" 
 
 @app.get("/")
 def home():
@@ -52,8 +53,8 @@ def spotify_callback(code: Optional[str] = None, error: Optional[str] = None, st
     if not code:
         return {"error": "Authorization code not found."}
         
-    frontend_url = f"http://localhost:3000/processing?code={code}&state={state}"
-    return RedirectResponse(frontend_url)
+    frontend_redirect = f"{FRONTEND_URL}/processing?code={code}&state={state}"
+    return RedirectResponse(frontend_redirect)
 
 @app.get("/generate")
 def generate_recommendations(code: str, state: Optional[str] = "balanced"):
