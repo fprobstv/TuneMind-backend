@@ -123,7 +123,7 @@ def generate_recommendations(code: str, state: Optional[str] = "balanced"):
     )
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        model = genai.GenerativeModel('gemini-pro') 
         ia_response = model.generate_content(prompt)
         recommendation_text = ia_response.text
     except Exception as e:
